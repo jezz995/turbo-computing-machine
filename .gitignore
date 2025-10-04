@@ -1,2 +1,4 @@
 node_modules
 .env
+gemini-api-chat-wks.code-workspace
+uploads

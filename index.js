@@ -1,188 +1,127 @@
-//proses dependensi
+// proses import dependency ke dalam file index.js
 import express from "express";
 import cors from "cors";
 import multer from "multer";
-import {
-  createPartFromUri,
-  createUserContent,
-  GoogleGenAI,
-} from "@google/genai";
-import fs from "fs";
+import { GoogleGenAI } from "@google/genai";
 
 import "dotenv/config";
 
-//inisialisasi express
+// mulai persiapkan project kita
+
+// 1. inisialisasi express
 
 const app = express();
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const ai = new GoogleGenAI({});
 
-//inisialisasi middleware
+// 2. inisialisasi middleware
 
 app.use(cors());
+// app.use(multer());
 app.use(express.json());
+app.use(express.static("public"));
 
-// Inisialisasi multer untuk menangani upload file
-// File akan disimpan di folder 'uploads'
-const upload = multer({ dest: "uploads/" });
+// 3. inisialisasi endpoint
+// [HTTP method: GET, POST, PUT, PATCH, DELETE]
+// .get()    --> utamanya untuk mengambil data, atau search
+// .post()   --> utamanya untuk menaruh (post) data baru ke dalam server
+// .put()    --> utamanya untuk menimpa data yang sudah ada di dalam server
+// .patch()  --> utamanya untuk "menambal" data yang sudah ada di dalam server
+// .delete() --> utamanya untuk menghapus data yang ada di dalam server
 
-//inisialisasi endpoint
-
-// Pastikan folder 'uploads' ada di root project Anda.
-
-app.post("/chat", async (req, res) => {
-  const { body } = req;
-  const { prompt } = body;
-
-  //guard clause
-  if (!prompt || typeof prompt !== "string") {
-    res.status(400).json({
-      message: "prompt harus diisi dan berupa string!",
-      data: null,
-      success: false,
-    });
-    return;
-  }
-  //main part, part penting
-  try {
-    const aiResponse = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: [
-        {
-          parts: [{ text: prompt }],
-        },
-      ],
-    });
-
-    res.status(200).json({
-      success: true,
-      message: aiResponse.text || "Berhasil di tanggapi oleh google gemini",
-    });
-  } catch (e) {
-    console.log(e);
-    res.status(500).json({
-      success: false,
-      message: e.message || "Ada masalah di server!!",
-    });
-  }
-});
-
-//route end point
-//1.generate text
-app.post("/generate-text", async (req, res) => {
-  const { prompt } = req.body;
-
-  try {
-    const result = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-    });
-    res.json({
-      output: result.text,
-    });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({
-      error: e.message,
-    });
-  }
-});
-
-//2.generate picture
-app.post("/generate-from-image", upload.single("image"), async (req, res) => {
-  const { prompt = "Describe this uploaded image" } = req.body; // Default prompt
-
-  try {
-    const image = await ai.files.upload({
-      file: req.file.path,
-      config: {
-        mimeType: req.file.mimetype,
-      },
-    });
-
-    const result = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: [
-        createUserContent([
-          prompt,
-          createPartFromUri(image.uri, image.mimeType),
-        ]),
-      ],
-    });
-
-    res.json({ output: result.text });
-  } catch (error) {
-    console.error("Error generating content", error);
-    res.status(500).json({ error: error.message });
-  } finally {
-    fs.unlinkSync(req.file.path); // Hapus file sementara
-  }
-});
-
-//3.generate dari dokumen
+// endpoint POST /chat
 app.post(
-  "/generate-from-document",
-  upload.single("document"),
+  "/chat", // http://localhost:[PORT]/chat
   async (req, res) => {
-    const { prompt = "Describe this uploaded document" } = req.body; // Default prompt
+    const { body } = req;
+    const { conversation } = body;
 
+    // body
+    // {
+    //   conversation: [
+    //     { role: '' ( 'user' | 'model' ), text: '' }
+    //   ] // kita cek role sama text-nya ada atau nggak
+    // }
+
+    // guard clause -- satpam
+    if (!conversation || !Array.isArray(conversation)) {
+      res.status(400).json({
+        message: "Percakapan harus valid!",
+        data: null,
+        success: false,
+      });
+      return;
+    }
+
+    // guard clause #2 -- satpam ketat!
+    const conversationIsValid = conversation.every((message) => {
+      // kondisi pertama -- message harus truthy
+      if (!message) return false;
+
+      // kondisi kedua -- message harus berupa object, namun bukan array!
+      if (typeof message !== "object" || Array.isArray(message)) return false;
+
+      // kondisi ketiga -- message harus berisi hanya role dan text
+      const keys = Object.keys(message);
+      const keyLengthIsValid = keys.length === 2;
+      const keyContainsValidName = keys.every((key) =>
+        ["role", "text"].includes(key)
+      );
+
+      if (!keyLengthIsValid || !keyContainsValidName) return false;
+
+      // kondisi keempat
+      // -- role harus berupa 'user' | 'model'
+      // -- text harus berupa string
+
+      const { role, text } = message;
+      const roleIsValid = ["user", "model"].includes(role);
+      const textIsValid = typeof text === "string";
+
+      if (!roleIsValid || !textIsValid) return false;
+
+      return true;
+    });
+
+    if (!conversationIsValid) {
+      res.status(400).json({
+        message: "Percakapan harus valid!",
+        data: null,
+        success: false,
+      });
+      return;
+    }
+
+    const contents = conversation.map(({ role, text }) => ({
+      role,
+      parts: [{ text }],
+    }));
+
+    // dagingnya (A5 wagyu nih)
     try {
-      const filepath = req.file.path;
-      const buffer = fs.readFileSync(filepath);
-      const base64Data = buffer.toString("base64");
-      const mimeType = req.file.mimetype;
-
-      const documentPart = {
-        inlineData: { data: base64Data, mimeType },
-      };
-
-      const result = await ai.models.generateContent({
+      // 3rd party API -- Google AI
+      const aiResponse = await ai.models.generateContent({
         model: "gemini-2.5-flash",
-        contents: [createUserContent([prompt, documentPart])],
+        contents,
       });
 
-      res.json({ output: result.text });
+      res.status(200).json({
+        success: true,
+        data: aiResponse.text,
+        message: "Berhasil ditanggapi oleh Google Gemini Flash!",
+      });
     } catch (e) {
-      console.error("Error generating content", e);
-      res.status(500).json({ error: e.message });
-    } finally {
-      if (req.file) {
-        fs.unlinkSync(req.file.path); // Hapus file sementara
-      }
+      console.log(e);
+      res.status(500).json({
+        success: false,
+        data: null,
+        message: e.message || "Ada masalah di server gan!",
+      });
     }
   }
 );
 
-//4.generate from audio
-app.post("/generate-from-audio", upload.single("audio"), async (req, res) => {
-  const { prompt = "Describe this uploaded audio" } = req.body; // Default prompt
-
-  try {
-    const audioBuffer = fs.readFileSync(req.file.path);
-    const base64Audio = audioBuffer.toString("base64");
-    const mimeType = req.file.mimetype;
-
-    const audioPart = {
-      inlineData: { data: base64Audio, mimeType },
-    };
-
-    const result = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: [createUserContent([prompt, audioPart])],
-    });
-
-    res.json({ output: result.text });
-  } catch (error) {
-    console.error("Error generating content", error);
-    res.status(500).json({ error: error.message });
-  } finally {
-    fs.unlinkSync(req.file.path); // Hapus file sementara
-  }
-});
-
-//buat entry point
-
 const PORT = 3000;
-
+// entry point-nya
 app.listen(PORT, () => {
-  console.log("server jalan di 3000");
+  console.log("Nyala di", PORT);
 });
