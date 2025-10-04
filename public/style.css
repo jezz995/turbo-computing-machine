@@ -10,7 +10,7 @@ body {
   margin: 40px auto;
   background: #fff;
   padding: 20px;
-  border-radius: 10px;
+  border-radius: 20px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
@@ -55,6 +55,12 @@ form {
   display: flex;
   gap: 10px;
 }
+/* --- New styles for input with clear button --- */
+.input-container {
+  position: relative;
+  flex: 1;
+  display: flex;
+}
 
 input[type="text"] {
   flex: 1;
@@ -62,6 +68,25 @@ input[type="text"] {
   border-radius: 20px;
   border: 1px solid #ccc;
   font-size: 16px;
+  padding-right: 35px; /* Make space for the clear button */
+}
+
+.clear-btn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  color: #888;
+  cursor: pointer;
+  padding: 0 5px;
+  display: none; /* Hidden by default */
+}
+
+.clear-btn:hover {
+  color: #333;
 }
 
 button {
@@ -76,4 +101,67 @@ button {
 
 button:hover {
   background-color: #0b5ed7;
+}
+
+/* --- New styles for quick action buttons --- */
+.quick-actions {
+  max-width: 600px;
+  margin: 20px auto 0;
+  /*display: flex;*/
+  /*flex-wrap: wrap;*/
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  /*justify-content: center;*/
+}
+
+.quick-action-btn {
+  background-color: #f8f9fa;
+  color: #333;
+  border: 1px solid #ddd;
+  padding: 8px 15px;
+  border-radius: 15px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.quick-action-btn:hover {
+  background-color: #e9ecef;
+  color: #000;
+}
+/* --- Menambahkan agar tampilan lebih rapi saat user ingin tampilan numbering --- */
+.message ul,
+.message ol {
+  padding-left: 20px;
+  margin-top: 5px;
+  margin-bottom: 5px;
+}
+
+.message li {
+  margin-bottom: 4px;
+}
+
+.message table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  margin-bottom: 10px;
+  font-size: 0.9em;
+}
+
+.message th,
+.message td {
+  border: 1px solid #b3b3b3;
+  padding: 6px 8px;
+  text-align: left;
+}
+
+.message th {
+  background-color: #e9ecef;
+  font-weight: bold;
+}
+
+.message tr:nth-child(even) {
+  background-color: #f8f9fa;
 }

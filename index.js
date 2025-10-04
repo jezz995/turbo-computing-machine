@@ -30,7 +30,7 @@ app.use(express.static("public"));
 
 // endpoint POST /chat
 app.post(
-  "/chat", // http://localhost:[PORT]/chat
+  "/api/chat", // http://localhost:[PORT]/chat
   async (req, res) => {
     const { body } = req;
     const { conversation } = body;
@@ -102,6 +102,9 @@ app.post(
       const aiResponse = await ai.models.generateContent({
         model: "gemini-2.5-flash",
         contents,
+        config: {
+          temperature: 0.1,
+        },
       });
 
       res.status(200).json({
